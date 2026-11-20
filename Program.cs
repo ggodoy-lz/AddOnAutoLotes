@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using SAPbouiCOM;
 using WinForms = System.Windows.Forms;
 
@@ -40,7 +40,19 @@ namespace AddOnAutoLotes
                 _sboApp.SetStatusBarMessage("Add-on Autoasignación de Lotes conectado.", 
                                             BoMessageTime.bmt_Short, false);
 
-                // 6. Iniciar el bucle de mensajes
+                // 6. Watchdog: si SAP se cerro sin avisar (cuelgue, kill, corte), cerrar el add-on
+                //    para no dejar el .exe bloqueado y que las actualizaciones no fallen
+                int pingFails = 0;
+                WinForms.Timer watchdog = new WinForms.Timer();
+                watchdog.Interval = 5000;
+                watchdog.Tick += (s, e) =>
+                {
+                    try { int n = _sboApp.Forms.Count; pingFails = 0; }
+                    catch { if (++pingFails >= 3) Environment.Exit(0); }
+                };
+                watchdog.Start();
+
+                // 7. Iniciar el bucle de mensajes
                 WinForms.Application.Run();
             }
             catch (Exception ex)
@@ -166,7 +178,7 @@ namespace AddOnAutoLotes
                 case BoAppEventTypes.aet_ShutDown:
                 case BoAppEventTypes.aet_CompanyChanged:
                 case BoAppEventTypes.aet_ServerTerminition:
-                    WinForms.Application.Exit();
+                    Environment.Exit(0);
                     break;
             }
         }

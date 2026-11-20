@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Configuration;
 using System.Threading;
 using System.Windows.Forms;
@@ -13,6 +13,7 @@ namespace AddOnAutoLotes
         private readonly int _buttonWidth;
         private readonly bool _autoConfirm;
         private readonly bool _enableSerials;
+        private bool _running;
 
         public const string ButtonUid = "btnAutoAll";
 
@@ -27,7 +28,7 @@ namespace AddOnAutoLotes
                 width = 140;
             _buttonWidth = width;
 
-            // Por defecto activamos auto-confirmación para que guarde con OK automáticamente
+            // Por defecto activamos auto-confirmaciÃ³n para que guarde con OK automÃ¡ticamente
             bool autoConf;
             if (!bool.TryParse(ConfigurationManager.AppSettings["AutoConfirm"], out autoConf))
                 autoConf = true;
@@ -64,11 +65,11 @@ namespace AddOnAutoLotes
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error al agregar botón Autoasignar: " + ex.Message);
+                Console.WriteLine("Error al agregar botÃ³n Autoasignar: " + ex.Message);
             }
         }
 
-        // SAP reubica sus ítems nativos al redimensionar, pero no los agregados por add-on.
+        // SAP reubica sus Ã­tems nativos al redimensionar, pero no los agregados por add-on.
         // Anclamos siempre a la derecha de 'Cancelar' (Item 2), que SAP mantiene abajo a la izquierda.
         public void RepositionButton(SAPbouiCOM.Form oForm)
         {
@@ -92,13 +93,13 @@ namespace AddOnAutoLotes
             if (itm.Type != BoFormItemTypes.it_BUTTON) return false;
             try
             {
-                string cap = (((SAPbouiCOM.Button)itm.Specific).Caption ?? "").ToLower();
+                string cap = (((SAPbouiCOM.Button)itm.Specific).Caption ?? "").Replace("&", "").ToLower();
                 return cap.Contains("auto");
             }
             catch { return false; }
         }
 
-        // Busca el botón nativo de Selección automática por caption (no confiar en un UID fijo).
+        // Busca el botÃ³n nativo de SelecciÃ³n automÃ¡tica por caption (no confiar en un UID fijo).
         private static Item FindNativeAutoButton(SAPbouiCOM.Form oForm)
         {
             for (int k = 0; k < oForm.Items.Count; k++)
@@ -112,9 +113,18 @@ namespace AddOnAutoLotes
 
         public void ExecuteAutoAssignAll(SAPbouiCOM.Form oForm)
         {
+            // Evita ejecuciones superpuestas: DoEvents dentro del bucle procesa clicks repetidos
+            if (_running) return;
+            _running = true;
+            try { RunAutoAssignAll(oForm); }
+            finally { _running = false; }
+        }
+
+        private void RunAutoAssignAll(SAPbouiCOM.Form oForm)
+        {
             try
             {
-                // Matriz 3: Líneas de documentos
+                // Matriz 3: LÃ­neas de documentos
                 Matrix oMatrix = null;
                 try
                 {
@@ -122,27 +132,27 @@ namespace AddOnAutoLotes
                 }
                 catch
                 {
-                    _sboApp.StatusBar.SetText("No se encontró la matriz de artículos del documento (Item 3).", BoMessageTime.bmt_Short, BoStatusBarMessageType.smt_Error);
+                    _sboApp.StatusBar.SetText("No se encontrÃ³ la matriz de artÃ­culos del documento (Item 3).", BoMessageTime.bmt_Short, BoStatusBarMessageType.smt_Error);
                     return;
                 }
 
                 int totalRows = oMatrix.RowCount;
                 if (totalRows == 0)
                 {
-                    _sboApp.StatusBar.SetText("No hay artículos en la lista para asignar.", BoMessageTime.bmt_Short, BoStatusBarMessageType.smt_Warning);
+                    _sboApp.StatusBar.SetText("No hay artÃ­culos en la lista para asignar.", BoMessageTime.bmt_Short, BoStatusBarMessageType.smt_Warning);
                     return;
                 }
 
-                // Localizar el botón de Autoselección nativo
+                // Localizar el botÃ³n de AutoselecciÃ³n nativo
                 Item oItemAuto = FindNativeAutoButton(oForm);
 
                 if (oItemAuto == null)
                 {
-                    _sboApp.StatusBar.SetText("No se encontró el botón nativo de Autoselección.", BoMessageTime.bmt_Short, BoStatusBarMessageType.smt_Error);
+                    _sboApp.StatusBar.SetText("No se encontrÃ³ el botÃ³n nativo de AutoselecciÃ³n.", BoMessageTime.bmt_Short, BoStatusBarMessageType.smt_Error);
                     return;
                 }
 
-                _sboApp.SetStatusBarMessage("Iniciando autoasignación masiva de lotes...", BoMessageTime.bmt_Short, false);
+                _sboApp.SetStatusBarMessage("Iniciando autoasignaciÃ³n masiva de lotes...", BoMessageTime.bmt_Short, false);
 
                 int processed = 0;
 
@@ -151,16 +161,16 @@ namespace AddOnAutoLotes
                 {
                     try
                     {
-                        // 1. Seleccionar y hacer clic en la fila para que SAP active ese ítem y cargue sus lotes disponibles
+                        // 1. Seleccionar y hacer clic en la fila para que SAP active ese Ã­tem y cargue sus lotes disponibles
                         try { oMatrix.SelectRow(row, true, false); } catch { }
                         try { oMatrix.Columns.Item(0).Cells.Item(row).Click(BoCellClickType.ct_Regular); } catch { }
                         try { oMatrix.Columns.Item(1).Cells.Item(row).Click(BoCellClickType.ct_Regular); } catch { }
 
-                        // Dar tiempo a la interfaz de SAP para sincronizar los lotes de la línea
+                        // Dar tiempo a la interfaz de SAP para sincronizar los lotes de la lÃ­nea
                         System.Windows.Forms.Application.DoEvents();
                         Thread.Sleep(60);
 
-                        // 2. Disparar clic en 'Autoselección' para mover los lotes a 'Lotes seleccionados'
+                        // 2. Disparar clic en 'AutoselecciÃ³n' para mover los lotes a 'Lotes seleccionados'
                         oItemAuto.Click(BoCellClickType.ct_Regular);
 
                         System.Windows.Forms.Application.DoEvents();
@@ -170,17 +180,17 @@ namespace AddOnAutoLotes
                     }
                     catch (Exception exRow)
                     {
-                        Console.WriteLine(string.Format("Fila {0} falló: {1}", row, exRow.Message));
+                        Console.WriteLine(string.Format("Fila {0} fallÃ³: {1}", row, exRow.Message));
                     }
                 }
 
                 _sboApp.StatusBar.SetText(
-                    string.Format("¡Lotes asignados en {0} de {1} líneas! Confirmando...", processed, totalRows),
+                    string.Format("Â¡Lotes asignados en {0} de {1} lÃ­neas! Confirmando...", processed, totalRows),
                     BoMessageTime.bmt_Short,
                     BoStatusBarMessageType.smt_Success
                 );
 
-                // 3. Confirmar con el botón 'OK' (Item 1) para guardar los lotes y cerrar la ventana
+                // 3. Confirmar con el botÃ³n 'OK' (Item 1) para guardar los lotes y cerrar la ventana
                 if (_autoConfirm)
                 {
                     try
@@ -202,3 +212,4 @@ namespace AddOnAutoLotes
         }
     }
 }
+

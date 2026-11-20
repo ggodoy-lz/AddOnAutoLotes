@@ -1,4 +1,6 @@
-﻿# Script de compilacion y empaquetado para AddOnAutoLotes (SAP Business One 10.0 x64)
+# Script de compilacion y empaquetado para AddOnAutoLotes (SAP Business One 10.0 x64)
+# Uso: .\build.ps1 -Version 1.0.3
+param([Parameter(Mandatory=$true)][string]$Version)
 $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -41,7 +43,8 @@ Write-Host "4. Actualizando AddOnAutoLotes.ard con el hash..." -ForegroundColor 
 $ardPath = Join-Path $scriptDir "AddOnAutoLotes.ard"
 $ardContent = Get-Content $ardPath -Raw -Encoding utf8
 $ardContent = [regex]::Replace($ardContent, 'AddonSig="[A-Fa-f0-9]{32}"', "AddonSig=""$hash""")
-[System.IO.File]::WriteAllText($ardPath, $ardContent, [System.Text.Encoding]::UTF8)
+$ardContent = [regex]::Replace($ardContent, 'ExtVersion="[^"]*"', "ExtVersion=""$Version""")
+[System.IO.File]::WriteAllText($ardPath, $ardContent, (New-Object System.Text.UTF8Encoding($false)))
 
 Write-Host "5. Compilando instalador ejecutable (AddOnAutoLotesInstaller.exe)..." -ForegroundColor Cyan
 $installerPath = Join-Path $scriptDir "AddOnAutoLotesInstaller.exe"
@@ -60,14 +63,23 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-Write-Host "6. Empaquetando Extension ZIP para Extension Manager..." -ForegroundColor Cyan
-$extensionPackager = "C:\Program Files (x86)\SAP\SAP Business One SDK\Tools\ExtensionPackage\ExtensionPackage.exe"
-$zipPath = Join-Path $scriptDir "AddOnAutoLotes.zip"
-
-$pkgArgs = "/64:$exePath /p:$zipPath /s:$ardPath /v:1.0.1"
-$proc = Start-Process -FilePath $extensionPackager -ArgumentList $pkgArgs -NoNewWindow -Wait -PassThru
+Write-Host "6. Empaquetando Extension ZIP $Version para Extension Manager..." -ForegroundColor Cyan
+# Misma estructura que genera el asistente oficial: .ard + X64Client/
+Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+$zipPath = Join-Path $scriptDir "AddOnAutoLotes_$Version.zip"
+if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+$zip = [System.IO.Compression.ZipFile]::Open($zipPath, 'Create')
+try {
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $ardPath, "AddOnAutoLotes.ard") | Out-Null
+    $zip.CreateEntry("X64Client/") | Out-Null
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, (Join-Path $x64Dir "AddOnAutoLotes.exe"), "X64Client/AddOnAutoLotes.exe") | Out-Null
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, (Join-Path $x64Dir "AddOnAutoLotes.exe.config"), "X64Client/AddOnAutoLotes.exe.config") | Out-Null
+} finally {
+    $zip.Dispose()
+}
 
 Write-Host "`nListo! Archivos generados exitosamente:" -ForegroundColor Green
 Write-Host "   Instalador EXE: $installerPath" -ForegroundColor Yellow
 Write-Host "   Paquete ZIP:    $zipPath" -ForegroundColor Yellow
+
 
