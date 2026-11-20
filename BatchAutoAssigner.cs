@@ -50,100 +50,64 @@ namespace AddOnAutoLotes
         {
             try
             {
-                try
-                {
-                    Item existing = oForm.Items.Item(ButtonUid);
-                    if (existing != null) return;
-                }
-                catch { }
+                Item oBtnItem = null;
+                try { oBtnItem = oForm.Items.Item(ButtonUid); } catch { }
 
-                Item oAnchorItem = null;
-
-                try
+                if (oBtnItem == null)
                 {
-                    oAnchorItem = oForm.Items.Item("48");
-                }
-                catch { }
-
-                if (oAnchorItem == null)
-                {
-                    for (int i = 0; i < oForm.Items.Count; i++)
-                    {
-                        Item itm = oForm.Items.Item(i);
-                        if (itm.Type == BoFormItemTypes.it_BUTTON && itm.UniqueID != "1" && itm.UniqueID != "2")
-                        {
-                            try
-                            {
-                                SAPbouiCOM.Button b = (SAPbouiCOM.Button)itm.Specific;
-                                string cap = (b.Caption ?? "").ToLower();
-                                if (cap.Contains("auto") || cap.Contains("asignac") || cap.Contains("select"))
-                                {
-                                    oAnchorItem = itm;
-                                    break;
-                                }
-                            }
-                            catch { }
-                        }
-                    }
+                    oBtnItem = oForm.Items.Add(ButtonUid, BoFormItemTypes.it_BUTTON);
+                    oBtnItem.Width = _buttonWidth;
+                    ((SAPbouiCOM.Button)oBtnItem.Specific).Caption = _buttonCaption;
                 }
 
-                int newLeft = 0;
-                int newTop = 0;
-                int newHeight = 19;
-
-                if (oAnchorItem != null)
-                {
-                    newLeft = oAnchorItem.Left - _buttonWidth - 10;
-                    newTop = oAnchorItem.Top;
-                    newHeight = oAnchorItem.Height;
-
-                    if (newLeft < 150)
-                    {
-                        try
-                        {
-                            Item itmCancel = oForm.Items.Item("2");
-                            newLeft = itmCancel.Left + itmCancel.Width + 10;
-                            newTop = itmCancel.Top;
-                            newHeight = itmCancel.Height;
-                        }
-                        catch { }
-                    }
-                }
-                else
-                {
-                    try
-                    {
-                        Item itmCancel = oForm.Items.Item("2");
-                        newLeft = itmCancel.Left + itmCancel.Width + 10;
-                        newTop = itmCancel.Top;
-                        newHeight = itmCancel.Height;
-                    }
-                    catch
-                    {
-                        newLeft = 160;
-                        newTop = oForm.Height - 45;
-                    }
-                }
-
-                Item oNewItem = oForm.Items.Add(ButtonUid, BoFormItemTypes.it_BUTTON);
-                oNewItem.Left = newLeft;
-                oNewItem.Top = newTop;
-                oNewItem.Width = _buttonWidth;
-                oNewItem.Height = newHeight;
-
-                if (oAnchorItem != null)
-                {
-                    oNewItem.FromPane = oAnchorItem.FromPane;
-                    oNewItem.ToPane = oAnchorItem.ToPane;
-                }
-
-                SAPbouiCOM.Button oBtn = (SAPbouiCOM.Button)oNewItem.Specific;
-                oBtn.Caption = _buttonCaption;
+                PositionButton(oForm, oBtnItem);
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Error al agregar botón Autoasignar: " + ex.Message);
             }
+        }
+
+        // SAP reubica sus ítems nativos al redimensionar, pero no los agregados por add-on.
+        // Anclamos siempre a la derecha de 'Cancelar' (Item 2), que SAP mantiene abajo a la izquierda.
+        public void RepositionButton(SAPbouiCOM.Form oForm)
+        {
+            try
+            {
+                PositionButton(oForm, oForm.Items.Item(ButtonUid));
+            }
+            catch { }
+        }
+
+        private void PositionButton(SAPbouiCOM.Form oForm, Item oBtnItem)
+        {
+            Item itmCancel = oForm.Items.Item("2");
+            oBtnItem.Left = itmCancel.Left + itmCancel.Width + 5;
+            oBtnItem.Top = itmCancel.Top;
+            oBtnItem.Height = itmCancel.Height;
+        }
+
+        private static bool IsAutoCaption(Item itm)
+        {
+            if (itm.Type != BoFormItemTypes.it_BUTTON) return false;
+            try
+            {
+                string cap = (((SAPbouiCOM.Button)itm.Specific).Caption ?? "").ToLower();
+                return cap.Contains("auto");
+            }
+            catch { return false; }
+        }
+
+        // Busca el botón nativo de Selección automática por caption (no confiar en un UID fijo).
+        private static Item FindNativeAutoButton(SAPbouiCOM.Form oForm)
+        {
+            for (int k = 0; k < oForm.Items.Count; k++)
+            {
+                Item itm = oForm.Items.Item(k);
+                if (itm.UniqueID == ButtonUid || itm.UniqueID == "1" || itm.UniqueID == "2") continue;
+                if (IsAutoCaption(itm)) return itm;
+            }
+            return null;
         }
 
         public void ExecuteAutoAssignAll(SAPbouiCOM.Form oForm)
@@ -170,34 +134,7 @@ namespace AddOnAutoLotes
                 }
 
                 // Localizar el botón de Autoselección nativo
-                Item oItemAuto = null;
-                try
-                {
-                    oItemAuto = oForm.Items.Item("48");
-                }
-                catch { }
-
-                if (oItemAuto == null)
-                {
-                    for (int k = 0; k < oForm.Items.Count; k++)
-                    {
-                        Item itm = oForm.Items.Item(k);
-                        if (itm.Type == BoFormItemTypes.it_BUTTON && itm.UniqueID != ButtonUid && itm.UniqueID != "1" && itm.UniqueID != "2")
-                        {
-                            try
-                            {
-                                SAPbouiCOM.Button b = (SAPbouiCOM.Button)itm.Specific;
-                                string cap = (b.Caption ?? "").ToLower();
-                                if (cap.Contains("auto") || cap.Contains("asignac") || cap.Contains("select"))
-                                {
-                                    oItemAuto = itm;
-                                    break;
-                                }
-                            }
-                            catch { }
-                        }
-                    }
-                }
+                Item oItemAuto = FindNativeAutoButton(oForm);
 
                 if (oItemAuto == null)
                 {

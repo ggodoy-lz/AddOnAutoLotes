@@ -86,6 +86,10 @@ namespace AddOnAutoLotes
                 filterVisible.AddEx("42");
                 filterVisible.AddEx("41");
 
+                EventFilter filterResize = oFilters.Add(BoEventTypes.et_FORM_RESIZE);
+                filterResize.AddEx("42");
+                filterResize.AddEx("41");
+
                 EventFilter filterClick = oFilters.Add(BoEventTypes.et_ITEM_PRESSED);
                 filterClick.AddEx("42");
                 filterClick.AddEx("41");
@@ -134,6 +138,11 @@ namespace AddOnAutoLotes
                 {
                     Form oForm = _sboApp.Forms.Item(FormUID);
                     _assigner.AddButtonToForm(oForm);
+                }
+
+                if (!pVal.BeforeAction && pVal.EventType == BoEventTypes.et_FORM_RESIZE)
+                {
+                    _assigner.RepositionButton(_sboApp.Forms.Item(FormUID));
                 }
 
                 if (!pVal.BeforeAction && 
