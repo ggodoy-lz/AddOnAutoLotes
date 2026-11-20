@@ -26,7 +26,7 @@
           <Files />
         </Uninstallation>
       </x86>
-      <x64 AddonExe="AddOnAutoLotes.exe" AddonSig="9205E0655B639E78F02174CDFA8E121F" ExeDir="X64Client">
+      <x64 AddonExe="AddOnAutoLotes.exe" AddonSig="5B4382945AAF444B6DE890873F613F51" ExeDir="X64Client">
         <Installation>
           <Files>
             <File FileName="X64Client\AddOnAutoLotes.exe">

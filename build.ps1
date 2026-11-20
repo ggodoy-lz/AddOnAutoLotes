@@ -11,7 +11,7 @@ $outDir = Join-Path $scriptDir "bin\x64\Release"
 if (!(Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir -Force | Out-Null }
 
 $exePath = Join-Path $outDir "AddOnAutoLotes.exe"
-$sdkDll = "C:\Program Files\SAP\SAP Business One\SAPBusinessOneSDK.dll"
+$sdkDll = "C:\Program Files (x86)\SAP\SAP Business One SDK\Lib\SAPBusinessOneSDK.dll"
 
 & $csc /target:winexe /platform:x64 /optimize+ `
     /r:$sdkDll /r:System.dll /r:System.Configuration.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll `
@@ -70,3 +70,4 @@ $proc = Start-Process -FilePath $extensionPackager -ArgumentList $pkgArgs -NoNew
 Write-Host "`nListo! Archivos generados exitosamente:" -ForegroundColor Green
 Write-Host "   Instalador EXE: $installerPath" -ForegroundColor Yellow
 Write-Host "   Paquete ZIP:    $zipPath" -ForegroundColor Yellow
+
